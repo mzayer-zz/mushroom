@@ -1,5 +1,7 @@
 * in this version:
-* no purchased or sale power modelled
+*** purchased or sale power modelled added
+*** Income term added plus Pinj (injected from network) and Psale(sold to network)
+* no renewable
 * obj func is cost minimization
 * min on time and offtime have been commented out
 Sets
@@ -11,6 +13,7 @@ n number of segments of piecewise linear cost of units i // ;
 Parameters
 m(i,n) slope of segment n of cost func of unit i at t
 MC(i) Min production cost of unit i
+LMP(t) price of energy at each hour t 
 Pnmax(i,n) max power for each segment
 Pmin(i) min power of unit i 
 Pmax(i) max power of unit i 
@@ -38,6 +41,7 @@ LCC Load Curtailment Cost ;
 Binary Variables
 I(i,t) Commitment state of unit i at time t 
 U(e,t) 0 or 1 for charge or discharge of ESS ;
+
 Positive Variables
 SU(i,t) Startup cost of unit i at time t 
 SD(i,t) Shutdown cost of unit i at time t 
@@ -47,7 +51,10 @@ LC(t) Load Curtailment
 E(e,t) Energy stored in ESS system e at time t
 C(e,t) Charge power of ESS system e at time t 
 D(e,t) discharge power of ESS system e at time t 
-Prod_cost ;
+Prod_cost generation cost
+Pinj(t) P injected from main Network at the price of LMP
+Psale(t) P sold to Network at price of LMP
+Income from selling power to Network;
 
 Equations
 	1obj_func
@@ -72,7 +79,8 @@ Equations
 	20charge_rate_max
 	21power_balance
 	22Reserve
-
+	23Income
+	
 1obj_func.. Prod_cost =e= sum(t,sum(i, MC(i)*I(i,t) + sum(n, m(n)*P(i,t,n)) + SU(i,t) + SD(i,t) )) ;
 2P_eq(i,t,n).. Pn(i,t,n) =l= Pnmax(i,n) ;
 3gen_min(i,t).. P(i,t) =g= Pmin(i)*I(i,t) ;
@@ -93,5 +101,6 @@ Equations
 18discharge_rate_max(e,t).. D(e,t) - D(e,t-1) =g= -RDC(e) ;
 19charge_rate_min(e,t).. C(e,t) - C(e,t-1) =l= RC(e) ;
 20charge_rate_max(e,t).. C(e,t) - C(e,t-1) =g= -RC(e) ;
-21power_balance(t).. sum(i,P(i,t)) + sum(e,D(e,t) - C(e,t)) + LC(t) =e= Pd(t) ;
-22Reserve(t).. sum(i,P(i,t)*I(i,t)) =g= SRR(t) + Pd(t)
+21power_balance(t).. sum(i,P(i,t)) + sum(e,D(e,t) - C(e,t)) + LC(t) + Pinj(t) =e= Pd(t) + Psale(t);
+22Reserve(t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Pinj(t))
+23Income.. Income = sum(t,LMP(t)*(Psale(t) - Pinj(t)))
