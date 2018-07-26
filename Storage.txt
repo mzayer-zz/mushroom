@@ -1,16 +1,22 @@
 * in this version:
-*** purchased or sale power modelled added
-*** Income term added plus Pinj (injected from network) and Psale(sold to network)
-* no renewable
+*** Investment cost added to the model
+*** purchased or sale power modelled
+*** Income term added plus Ppur (purchased from network) and Psale(sold to network)
+*** pv cells added to model. P(pv,t) is output parameter, SI(pv) is planning state of each pv
 * obj func is cost minimization
 * min on time and offtime have been commented out
 Sets
 i index of generating(NG) units / /
 t index of time //
 e index of ESS systems // 
-n number of segments of piecewise linear cost of units i // ;
+n number of segments of piecewise linear cost of units i // 
+pv set of solar pv panels // ;
 
 Parameters
+*e(pv) efficiency of pv cell
+CCost(pv) Capital Cost of pv installation
+P(pv,t) output power of pv cell equal to efficiency times global irradiance at time t
+inv(i) investment cost of unit i 
 m(i,n) slope of segment n of cost func of unit i at t
 MC(i) Min production cost of unit i
 LMP(t) price of energy at each hour t 
@@ -35,11 +41,18 @@ Pd(t) Load demand at time t
 SRR(t) Spinning Reserve requirement of system at time t
 Ce(e) Charge Efficiency of ESS 
 DCe(e) Discharge Efficiency of ESS  ;
+
 Scalar 
 LCC Load Curtailment Cost ;
 
+Variable 
+total_cost generation cost
+invcost cost of investments ;
+
 Binary Variables
 I(i,t) Commitment state of unit i at time t 
+S(i) planning state of each unit
+SI(pv) planning state of each pv cell
 U(e,t) 0 or 1 for charge or discharge of ESS ;
 
 Positive Variables
@@ -51,14 +64,15 @@ LC(t) Load Curtailment
 E(e,t) Energy stored in ESS system e at time t
 C(e,t) Charge power of ESS system e at time t 
 D(e,t) discharge power of ESS system e at time t 
-Prod_cost generation cost
-Pinj(t) P injected from main Network at the price of LMP
+Ppur(t) P purchased from main Network at the price of LMP
 Psale(t) P sold to Network at price of LMP
 Income from selling power to Network;
 
 Equations
 	1obj_func
+	1prim_invcost
 	2P_eq
+	2prim_state_commit
 	3gen_min
 	4gen_max
 	5SU_eq
@@ -81,8 +95,10 @@ Equations
 	22Reserve
 	23Income
 	
-1obj_func.. Prod_cost =e= sum(t,sum(i, MC(i)*I(i,t) + sum(n, m(n)*P(i,t,n)) + SU(i,t) + SD(i,t) )) ;
+1obj_func.. total_cost =e=invcost + sum(t,sum(i,MC(i)*I(i,t) + SU(i,t) + SD(i,t) + sum(n, m(n)*P(i,t,n)))) - Income ;
+1prim_invcost.. invcost =e= sum(i, inv(i)*S(i)) + sum(pv, CC(pv)*SI(pv)) ;
 2P_eq(i,t,n).. Pn(i,t,n) =l= Pnmax(i,n) ;
+2prim_state_commit(i).. I(i,t) =l= S(i)
 3gen_min(i,t).. P(i,t) =g= Pmin(i)*I(i,t) ;
 4gen_max(i,t).. P(i,t) =l= Pmax(i)*I(i,t) ;
 5SU_eq(i,t).. SU(i,t) =g= K(i)*(I(i,t) - I(i,t-1)) ;
@@ -101,6 +117,6 @@ Equations
 18discharge_rate_max(e,t).. D(e,t) - D(e,t-1) =g= -RDC(e) ;
 19charge_rate_min(e,t).. C(e,t) - C(e,t-1) =l= RC(e) ;
 20charge_rate_max(e,t).. C(e,t) - C(e,t-1) =g= -RC(e) ;
-21power_balance(t).. sum(i,P(i,t)) + sum(e,D(e,t) - C(e,t)) + LC(t) + Pinj(t) =e= Pd(t) + Psale(t);
-22Reserve(t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Pinj(t))
-23Income.. Income = sum(t,LMP(t)*(Psale(t) - Pinj(t)))
+21power_balance(t).. sum(i,P(i,t)) + sum(e,D(e,t) - C(e,t)) + LC(t) + Ppur(t) =e= Pd(t) - sum(pv, P(pv,t)*SI(pv)) + Psale(t);
+22Reserve(t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Ppur(t))
+23Income.. Income = sum(t,LMP(t)*(Psale(t) - Ppur(t)))
