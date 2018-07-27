@@ -96,7 +96,7 @@ Equations
 	23Income
 	
 1obj_func.. total_cost =e=invcost + sum(t,sum(i,MC(i)*I(i,t) + SU(i,t) + SD(i,t) + sum(n, m(n)*P(i,t,n)))) - Income ;
-1prim_invcost.. invcost =e= sum(i, inv(i)*S(i)) + sum(pv, CC(pv)*SI(pv)) ;
+1prim_invcost.. invcost =e= sum(i, inv(i)*S(i)) + sum(pv, CC(pv)*SI(pv)) + sum(e,inv(e)*C(e)) ;
 2P_eq(i,t,n).. Pn(i,t,n) =l= Pnmax(i,n) ;
 2prim_state_commit(i).. I(i,t) =l= S(i)
 3gen_min(i,t).. P(i,t) =g= Pmin(i)*I(i,t) ;
