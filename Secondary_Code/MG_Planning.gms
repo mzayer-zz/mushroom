@@ -6,17 +6,20 @@
 * obj func is cost minimization
 * min on time and offtime have been commented out
 Sets
-i index of generating(NG) units / /
+i index of generating(NG) units /1*3/
 t index of hour /0*24/
 d inex of days /1*4/
 y index of year /1*10/
 e index of ESS systems //
-n number of segments of piecewise linear cost of units i //
-pv set of solar pv panels // ;
+n number of segments of piecewise linear cost of units i /1*3/
+pv set of solar pv panels /1*3/ ;
 
 Parameters
 *e(pv) efficiency of pv cell
-AnCost(pv) Annual Cost of pv installation
+AnCost(pv) Annual Cost of pv installation $perKw
+        /1       1065
+         2       2130
+         3       4260/
 AnCost(e) Annual cost of storage systems
 P(pv,y,d,t) output power of pv cell equal to efficiency times global irradiance at time t
 Aninv(i) Annual investment cost of unit i
@@ -24,18 +27,31 @@ m(i,n) slope of segment n of cost func of unit i at t
 MC(i) Min production cost of unit i
 LMP(y,d,t) price of energy at each hour t
 Pnmax(i,n) max power for each segment
-Pmin(i) min power of unit i
-Pmax(i) max power of unit i
+Pmin(i) min KW power of unit i
+        / 1      100
+          2      150
+          3      200 /
+Pmax(i) max KW power of unit i
+        / 1      1000
+          2      3000
+          3      6000 /
 K(i) Sturtup cost of unit i
+        / 1      7.35
+          2      45
+          3      95
+         /
 J(i) Shutdown cost of unit i
-RU(i) Ramp-Up limit (MWperMin)
+        / 1      1.5
+          2      8.5
+          3      15.3 /
+RU(i) Ramp-Up limit (KWperMin)
 RD(i) Ramp-Down
 RC(e) Rate of Charge of storage e
 RDC(e) Rate of Discharge e
 Ton(i) min on time of unit i
 Toff(i) min off time of unit i
-SUR(i) Startup Ramp of unit i (MWpermin)
-SDR(i) Shutdown Ramp of unit i (MWperMin)
+SUR(i) Startup Ramp of unit i (KWpermin)
+SDR(i) Shutdown Ramp of unit i (KWperMin)
 Einit(e) init energy stored in ESS system e
 Emin(e) min Energy stored in ESS system e at time t
 Emax(e) max
@@ -46,13 +62,15 @@ Ce(e) Charge Efficiency of ESS
 DCe(e) Discharge Efficiency of ESS  ;
 
 Scalar
-r rate of interest
-LCC Load Curtailment Cost ;
+r rate of interest /.2/
+LCC Load Curtailment Cost /1000/ ;
 
 Variable
-total_cost generation cost
-Aninvcost(y) Annual cost of investments
-Income from selling power to Network ;
+
+Aninvcost(y) Annual cost of investments yearly
+Income(y) from selling power to Network yearly
+OpCost(y) Operation cost yearly
+NPV Net Present Value of total costs ;
 
 Binary Variables
 I(i,y,d,t) Commitment state of unit i at time t
@@ -97,16 +115,17 @@ Equations
         20charge_rate_max
         21power_balance
         22Reserve
-        23Income ;
+        23Income
+        24OpCost ;
 
-*1obj_func.. total_cost =e=AnInvcost(y) + sum(t,sum(i,MC(i)*I(i,t) + SU(i,t) + SD(i,t) + sum(n, m(n)*P(i,t,n)))) - Income ;
+1obj_func.. NPV =e= sum(y,(AnInvcost(y) + OpCost(y) - Income(y))/((1+r)**y)) ;
 1prim_Aninvcost(y).. Aninvcost(y) =e= sum(i, Aninv(i)*S(i)) + sum(pv, AnCost(pv)*SI(pv)) + sum(e,Ancost(e)*C(e)) ;
 2P_eq(i,t,n).. Pn(i,n,y,d,t) =l= Pnmax(i,n) ;
 2prim_state_commit(i).. I(i,y,d,t) =l= S(i)
-3gen_min(i,t).. P(i,y,d,t) =g= Pmin(i)*I(i,y,d,t) ;
-4gen_max(i,t).. P(i,y,d,t) =l= Pmax(i)*I(i,y,d,t) ;
-5SU_eq(i,t).. SU(i,y,d,t) =g= K(i)*(I(i,y,d,t) - I(i,y,d,t-1)) ;
-6SD_eq(i,t).. SD(i,y,d,t) =g= J(i)*(I(i,y,d,t-1) - I(i,y,d,t)) ;
+3gen_min(i,y,d,t).. P(i,y,d,t) =g= Pmin(i)*I(i,y,d,t) ;
+4gen_max(i,y,d,t).. P(i,y,d,t) =l= Pmax(i)*I(i,y,d,t) ;
+5SU_eq(i,y,d,t).. SU(i,y,d,t) =g= K(i)*(I(i,y,d,t) - I(i,y,d,t-1)) ;
+6SD_eq(i,y,d,t).. SD(i,y,d,t) =g= J(i)*(I(i,y,d,t-1) - I(i,y,d,t)) ;
 * 7min_ontime ;
 * 8min_offtime ;
 9rampup_limit(i,y,d,t).. P(i,y,d,t) - P(i,y,d,t-1) =l= RU(i)*I(i,y,d,t-1) + SUR(i)*(i(i,y,d,t-1) - I(i,y,d,t)) ;
@@ -122,5 +141,7 @@ Equations
 19charge_rate_min(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =l= RC(e) ;
 20charge_rate_max(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =g= -RC(e) ;
 21power_balance(y,d,t).. sum(i,P(i,y,d,t)) + sum(e,D(e,y,d,t) - C(e,y,d,t)) + LC(y,d,t) + Ppur(y,d,t) =e= Pd(y,d,t) - sum(pv, P(pv,y,d,t)*SI(pv)) + Psale(y,d,t);
-22Reserve(y,d,t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Ppur(t))
-23Income.. Income = sum((y,d,t),LMP(y,d,t)*(Psale(y,d,t) - Ppur(y,d,t)))
+22Reserve(y,d,t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Ppur(t));
+23Income(y).. Income(y) =e= sum((d,t),LMP(y,d,t)*(Psale(y,d,t) - Ppur(y,d,t))) ;
+24OpCost(y).. OpCost(y) =e= sum((d,t),sum(i,MC(i)*I(i,y,d,t) + SU(i,y,d,t) + SD(i,y,d,t)
+ + sum(n, m(n)*P(i,y,d,t,n))) + LCC*LC(y,d,t)) ;
