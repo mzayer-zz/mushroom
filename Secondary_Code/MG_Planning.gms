@@ -4,14 +4,15 @@
 *** Income term added plus Ppur (purchased from network) and Psale(sold to network)
 *** pv cells added to model. P(pv,t) is output parameter, SI(pv) is planning state of each pv
 * obj func is cost minimization
+* equality of ESS's energy level at times 0 and 24 is essential
 * min on time and offtime have been commented out
 Sets
 i index of generating(NG) units /1*3/
 t index of hour /0*24/
 d inex of days /1*4/
 y index of year /1*10/
-e index of ESS systems //
-n number of segments of piecewise linear cost of units i /1*3/
+e index of ESS systems /1*3/
+n number of segments of piecewise linear cost of units i /1/
 pv set of solar pv panels /1*3/ ;
 
 Parameters
@@ -23,10 +24,14 @@ AnCost(pv) Annual Cost of pv installation $perKw
 AnCost(e) Annual cost of storage systems
 P(pv,y,d,t) output power of pv cell equal to efficiency times global irradiance at time t
 Aninv(i) Annual investment cost of unit i
-m(i,n) slope of segment n of cost func of unit i at t
+         /1
+          2
+          3       /
 MC(i) Min production cost of unit i
+       / 1       7.5
+         2       20
+         3       40 /
 LMP(y,d,t) price of energy at each hour t
-Pnmax(i,n) max power for each segment
 Pmin(i) min KW power of unit i
         / 1      100
           2      150
@@ -44,23 +49,57 @@ J(i) Shutdown cost of unit i
         / 1      1.5
           2      8.5
           3      15.3 /
-RU(i) Ramp-Up limit (KWperMin)
+RU(i) Ramp-Up limit (KWperHour)
+        /1       250
+         2       450
+         3       600  /
 RD(i) Ramp-Down
+         /1      250
+          2      450
+          3      660  /
+
 RC(e) Rate of Charge of storage e
 RDC(e) Rate of Discharge e
-Ton(i) min on time of unit i
-Toff(i) min off time of unit i
-SUR(i) Startup Ramp of unit i (KWpermin)
-SDR(i) Shutdown Ramp of unit i (KWperMin)
+*Ton(i) min on time of unit i
+*Toff(i) min off time of unit i
+SUR(i) Startup Ramp of unit i (KWperHour)
+SDR(i) Shutdown Ramp of unit i (KWperHour)
 Einit(e) init energy stored in ESS system e
+         /1      800
+          2      2400
+          3      4000 /
 Emin(e) min Energy stored in ESS system e at time t
+         /1 0
+          2 0
+          3 0 /
 Emax(e) max
+         /1      2000
+          2      6000
+          3      10000 /
+//
 PR(e) power rating of ESS
 Pd(y,d,t) Load demand at time t
 SRR(y,d,t) Spinning Reserve requirement of system at time t
 Ce(e) Charge Efficiency of ESS
-DCe(e) Discharge Efficiency of ESS  ;
+       / 1        0.95
+         2        0.95
+         3        0.95/
+DCe(e) Discharge Efficiency of ESS
+       / 1       0.95
+         2       0.95
+         3       0.95 / ;
 
+Table m(i,n) slope of segment n of cost func of unit i at t
+                 1
+        / 1      1.25
+          2      1.2
+          3      1.1881 / ;
+
+Table Pnmax(i,n) max power for each segment
+                 1
+       /  1      1000
+          2      3000
+          3      6000  / ;
 Scalar
 r rate of interest /.2/
 LCC Load Curtailment Cost /1000/ ;
@@ -99,8 +138,8 @@ Equations
         4gen_max
         5SU_eq
         6SD_eq
-*        * 7min_ontime
-*        * 8min_offtime
+*       7min_ontime
+*       8min_offtime
         9rampup_limit
         10rampdn_limit
         11ESS_balance
