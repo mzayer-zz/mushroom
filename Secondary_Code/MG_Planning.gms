@@ -6,6 +6,7 @@
 * obj func is cost minimization
 * equality of ESS's energy level at times 0 and 24 is essential
 * min on time and offtime have been commented out
+* 1.1Pd used stead of spinning reserve requirement
 Sets
 i index of generating(NG) units /1*3/
 t index of hour /0*24/
@@ -17,16 +18,23 @@ pv set of solar pv panels /1*3/ ;
 
 Parameters
 *e(pv) efficiency of pv cell
-AnCost(pv) Annual Cost of pv installation $perKw
+Cap(pv) capacity of pv candidates
+        / 1      500
+          2      1000
+          3      2000 /
+AnCost_pv(pv) Annual Cost of pv installation $perKw
         /1       1065
          2       2130
          3       4260/
-AnCost(e) Annual cost of storage systems
-P(pv,y,d,t) output power of pv cell equal to efficiency times global irradiance at time t
+AnCost_ess(e) Annual cost of storage systems
+         /1      1000
+          2      2000
+          3      3000/
+Ps(y,d,t) output power of pv cell equal to efficiency times global irradiance at time t
 Aninv(i) Annual investment cost of unit i
-         /1
-          2
-          3       /
+         /1     1000
+          2     2000
+          3     3000  /
 MC(i) Min production cost of unit i
        / 1       7.5
          2       20
@@ -59,27 +67,42 @@ RD(i) Ramp-Down
           3      660  /
 
 RC(e) Rate of Charge of storage e
+         /1      200
+          2      330
+          3      500 /
 RDC(e) Rate of Discharge e
+         /1     200
+          2     330
+          3     500 /
 *Ton(i) min on time of unit i
 *Toff(i) min off time of unit i
 SUR(i) Startup Ramp of unit i (KWperHour)
+         /1      250
+          2      450
+          3      600 /
 SDR(i) Shutdown Ramp of unit i (KWperHour)
+         /1      250
+          2      450
+          3      600 /
 Einit(e) init energy stored in ESS system e
          /1      800
           2      2400
           3      4000 /
 Emin(e) min Energy stored in ESS system e at time t
-         /1 0
-          2 0
-          3 0 /
+         /1       0
+          2       0
+          3       0 /
 Emax(e) max
          /1      2000
           2      6000
           3      10000 /
-//
+
 PR(e) power rating of ESS
+         /1      500
+          2      1000
+          3      1500 /
 Pd(y,d,t) Load demand at time t
-SRR(y,d,t) Spinning Reserve requirement of system at time t
+*SRR(y,d,t) Spinning Reserve requirement of system at time t
 Ce(e) Charge Efficiency of ESS
        / 1        0.95
          2        0.95
@@ -88,6 +111,20 @@ DCe(e) Discharge Efficiency of ESS
        / 1       0.95
          2       0.95
          3       0.95 / ;
+$ call gdxxrw LMPs.xlsx par LMP rng=sheet3!A1:AA41 rdim=2 cdim=1
+$ gdxxin LMPs.gdx
+$ load LMP
+$ gdxin
+$ call gdxxrw LoadSolar.xlsx par Ps rng=Psolar!A1:AA41 rdim=2 cdim=1
+$ gdxxin LoadSolar1.gdx
+$ load LoadSolar1
+$ gdxin
+$ call gdxxrw Loadsolar.xlsx par Pd rng=Pdemand!A1:AA41 rdim=2 cdim=1
+$ gdxxin LoadSolar2.gdx
+$ load LoadSolar2
+$ gdxin
+
+display LMP, Ps, Pd ;
 
 Table m(i,n) slope of segment n of cost func of unit i at t
                  1
@@ -158,7 +195,7 @@ Equations
         24OpCost ;
 
 1obj_func.. NPV =e= sum(y,(AnInvcost(y) + OpCost(y) - Income(y))/((1+r)**y)) ;
-1prim_Aninvcost(y).. Aninvcost(y) =e= sum(i, Aninv(i)*S(i)) + sum(pv, AnCost(pv)*SI(pv)) + sum(e,Ancost(e)*C(e)) ;
+1prim_Aninvcost(y).. Aninvcost(y) =e= sum(i, Aninv(i)*S(i)) + sum(pv, AnCost_pv(pv)*SI(pv)) + sum(e,Ancost_ess(e)*C(e)) ;
 2P_eq(i,t,n).. Pn(i,n,y,d,t) =l= Pnmax(i,n) ;
 2prim_state_commit(i).. I(i,y,d,t) =l= S(i)
 3gen_min(i,y,d,t).. P(i,y,d,t) =g= Pmin(i)*I(i,y,d,t) ;
@@ -179,8 +216,8 @@ Equations
 18discharge_rate_max(e,y,d,t).. D(e,y,d,t) - D(e,y,d,t-1) =g= -RDC(e) ;
 19charge_rate_min(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =l= RC(e) ;
 20charge_rate_max(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =g= -RC(e) ;
-21power_balance(y,d,t).. sum(i,P(i,y,d,t)) + sum(e,D(e,y,d,t) - C(e,y,d,t)) + LC(y,d,t) + Ppur(y,d,t) =e= Pd(y,d,t) - sum(pv, P(pv,y,d,t)*SI(pv)) + Psale(y,d,t);
-22Reserve(y,d,t).. sum(i,Pmax(i)*I(i,t)) =g= SRR(t) + Pd(t) + (Psale(t) - Ppur(t));
+21power_balance(y,d,t).. sum(i,P(i,y,d,t)) + sum(e,D(e,y,d,t) - C(e,y,d,t)) + LC(y,d,t) + Ppur(y,d,t) =e= Pd(y,d,t) - sum(pv, Cap(pv)*Ps(y,d,t)*SI(pv)) + Psale(y,d,t);
+22Reserve(y,d,t).. sum(i,Pmax(i)*I(i,y,d,t)) =g= 1.1*Pd(y,d,t) + (Psale(y,d,t) - Ppur(y,d,t));
 23Income(y).. Income(y) =e= sum((d,t),LMP(y,d,t)*(Psale(y,d,t) - Ppur(y,d,t))) ;
 24OpCost(y).. OpCost(y) =e= sum((d,t),sum(i,MC(i)*I(i,y,d,t) + SU(i,y,d,t) + SD(i,y,d,t)
  + sum(n, m(n)*P(i,y,d,t,n))) + LCC*LC(y,d,t)) ;
