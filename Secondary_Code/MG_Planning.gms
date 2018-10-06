@@ -119,7 +119,7 @@ $ call gdxxrw LoadSolar.xlsx par Ps rng=Psolar!A1:AA41 rdim=2 cdim=1
 $ gdxxin LoadSolar1.gdx
 $ load LoadSolar1
 $ gdxin
-$ call gdxxrw Loadsolar.xlsx par Pd rng=Pdemand!A1:AA41 rdim=2 cdim=1
+$ call gdxxrw LoadSolar.xlsx par Pd rng=Pdemand!A1:AA41 rdim=2 cdim=1
 $ gdxxin LoadSolar2.gdx
 $ load LoadSolar2
 $ gdxin
