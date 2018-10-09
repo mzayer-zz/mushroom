@@ -7,6 +7,7 @@
 * equality of ESS's energy level at times 0 and 24 is essential
 * min on time and offtime have been commented out
 * 1.1Pd used stead of spinning reserve requirement
+
 Sets
 i index of generating(NG) units /1*8/
 z table /1*8/
@@ -19,8 +20,8 @@ alias (t,j);
 Alias(tt,t);
 table DG_param(i,z)
 $include "C:\Users\Mansour\Desktop\mushroom\DG_param.txt";
+
 Parameters
-*e(pv) efficiency of pv cell
 YY(y) numerical value of each year
         / 1      1
           2      2
@@ -37,9 +38,9 @@ Cap(pv) capacity of pv candidates
           2      200
           3      200 /
 AnCost_pv(pv) Annual Cost of pv installation $perKw
-        /1       4255000
-         2       4255000
-         3       4255000 /
+        /1       2255000
+         2       2255000
+         3       2255000 /
 AnCost_ess(e) Annual cost of storage systems
          /1      10170000 /
 Ps(y,d,t) output power of pv cell equal to efficiency times global irradiance at time t
@@ -54,18 +55,6 @@ Aninv(i) Annual investment cost of unit i
          8     750000  /
 
 LMP(y,d,t) price of energy at each hour t
-*Pmin(i) min KW power of unit i
-
-*Pmax(i) max KW power of unit i
-
-*K(i) Sturtup cost of unit i
-
-*J(i) Shutdown cost of unit i
-
-*RU(i) Ramp-Up limit (KWperHour)
-
-*RD(i) Ramp-Down
-
 
 RC(e) Rate of Charge of storage e
          /1      200 /
@@ -73,9 +62,6 @@ RDC(e) Rate of Discharge e
          /1     200 /
 *Ton(i) min on time of unit i
 *Toff(i) min off time of unit i
-*SUR(i) Startup Ramp of unit i (KWperHour)
-
-*SDR(i) Shutdown Ramp of unit i (KWperHour)
 
 Einit(e) init energy stored in ESS system e
          /1      800 /
@@ -83,7 +69,6 @@ Emin(e) min Energy stored in ESS system e at time t
          /1       0 /
 Emax(e) max
          /1      1000 /
-
 PR(e) power rating of ESS
          /1      200 /
 Pd(y,d,t) Load demand at time t
@@ -107,11 +92,6 @@ $ gdxin
 
 display LMP, Ps, Pd ;
 
-*parameter m(i) slope of segment n of cost func of unit i at t
-
-
-*parameter Pnmax(i) max power for each segment
-
 Scalar
 r rate of interest /.2/
 LCC Load Curtailment Cost /10000/
@@ -119,7 +99,6 @@ UF /0/
 DF /0/;
 
 Variable
-
 Aninvcost(y) Annual cost of investments yearly
 Income(y) from selling power to Network yearly
 OpCost(y) Operation cost yearly
@@ -165,13 +144,13 @@ Equations
         charge_rate_min
         charge_rate_max
         power_balance
-        Reserve
+*        Reserve
         Income_eq
-        OpCost_eq
+        OpCost_eq  ;
 *         MIN_UP_Con
 *        MIN_DN_Con
-         Min_UP_Con_1
-         Min_DN_Con_1 ;
+*         Min_UP_Con_1
+*         Min_DN_Con_1 ;
 
 obj_func.. NPV =e= sum(y,(AnInvcost(y) + OpCost(y) - Income(y))/((1+r)**YY(y))) ;
 prim_Aninvcost(y).. Aninvcost(y) =e= sum(i, Aninv(i)*S(i)) + sum(pv, AnCost_pv(pv)*SI(pv)) + sum(e,Ancost_ess(e)) ;
@@ -184,7 +163,7 @@ gen_max(i,y,d,t).. P(i,y,d,t) =l= DG_param(i,'2')*II(i,y,d,t) ;
 SU_eq(i,y,d,t).. SU(i,y,d,t) =g= DG_param(i,'7')*(II(i,y,d,t) - II(i,y,d,t-1)) ;
 SD_eq(i,y,d,t).. SD(i,y,d,t) =g= DG_param(i,'8')*(II(i,y,d,t-1) - II(i,y,d,t)) ;
 
-*7min_ontime ;
+* 7min_ontime ;
 * 8min_offtime ;
 
 rampup_limit(i,y,d,t).. P(i,y,d,t) - P(i,y,d,t-1) =l= DG_param(i,'3') ;
@@ -193,8 +172,8 @@ rampdn_limit(i,y,d,t).. P(i,y,d,t-1) - P(i,y,d,t) =l= DG_param(i,'3') ;
 *MIN_UP_Con(i,y,d,t)$((ord(t)>=UF+1) and (ord(t)<24-DG_param(i,'4')+1))..sum(j$((ord(j)>=ord(t)) and (ord(j)<=ord(t)+DG_param(i,'4')-1)),II(i,y,d,j))=g=DG_param(i,'4')*II(i,y,d,t);
 *MIN_DN_Con(i,y,d,t)$((ord(t)>=DF+1) and (ord(t)<24-DG_param(i,'4')+1))..sum(j$((ord(j)>=ord(t)) and (ord(j)<=ord(t)+DG_param(i,'4')-1)),(1-II(i,y,d,j)))=g=DG_param(i,'4')*II(i,y,d,t);
 
-Min_UP_Con_1(i,y,d,t)$((ord(t)>=25-DG_param(i,'4')))..sum(j$(ord(j)>=ord(t)),II(i,y,d,j)-II(i,y,d,t))=g=0;
-Min_DN_Con_1(i,y,d,t)$((ord(t)>=25-DG_param(i,'4')))..sum(j$(ord(j)>=ord(t)),(1-II(i,y,d,j)-II(i,y,d,t)))=g=0;
+*Min_UP_Con_1(i,y,d,t)$((ord(t)>=25-DG_param(i,'4')))..sum(j$(ord(j)>=ord(t)),II(i,y,d,j)-II(i,y,d,t))=g=0;
+*Min_DN_Con_1(i,y,d,t)$((ord(t)>=25-DG_param(i,'4')))..sum(j$(ord(j)>=ord(t)),(1-II(i,y,d,j)-II(i,y,d,t)))=g=0;
 
 ESS_init(e,y,d,t)$(ord(t) = 1).. En(e,y,d,t) =e= Einit(e) ;
 ESS_balance(e,y,d,t).. En(e,y,d,t+1) =e= En(e,y,d,t) + Ce(e)*C(e,y,d,t) - Dc(e,y,d,t)/DCe(e) ;
@@ -210,12 +189,12 @@ charge_rate_min(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =l= RC(e) ;
 charge_rate_max(e,y,d,t).. C(e,y,d,t) - C(e,y,d,t-1) =g= -RC(e) ;
 
 power_balance(y,d,t).. sum(i,P(i,y,d,t)) + sum(e,Dc(e,y,d,t) - C(e,y,d,t)) + LC(y,d,t) +
-Ppur(y,d,t) + sum(pv, Cap(pv)*Ps(y,d,t)*SI(pv)) =g= Pd(y,d,t) + Psale(y,d,t);
+ sum(pv, Cap(pv)*Ps(y,d,t)*SI(pv))+ Ppur(y,d,t) =g= Pd(y,d,t) + Psale(y,d,t);
 
-Reserve(y,d,t).. sum(i,DG_param(i,'2')*II(i,y,d,t)) =g= 1.1*Pd(y,d,t) + (Psale(y,d,t) - Ppur(y,d,t));
-Income_eq(y).. Income(y) =e= 91.25*(sum((d,t),LMP(y,d,t)*(Psale(y,d,t) - Ppur(y,d,t)))) ;
-OpCost_eq(y).. OpCost(y) =e= 91.25*(sum((d,t),sum(i,DG_param(i,'6')*II(i,y,d,t) + SU(i,y,d,t) + SD(i,y,d,t)
- + DG_param(i,'6')*P(i,y,d,t) + LCC*LC(y,d,t)))) ;
+*Reserve(y,d,t).. sum(i,DG_param(i,'2')*II(i,y,d,t)) =g= 1.1*Pd(y,d,t) + (Psale(y,d,t) - Ppur(y,d,t));
+Income_eq(y).. Income(y) =e= 91.25*sum((d,t),LMP(y,d,t)*Psale(y,d,t)) ;
+OpCost_eq(y).. OpCost(y) =e= 91.25*(sum((d,t), sum(i,DG_param(i,'6')*II(i,y,d,t)
+ + LMP(y,d,t)*Ppur(y,d,t) + SU(i,y,d,t) + SD(i,y,d,t) + DG_param(i,'5')*P(i,y,d,t) + LCC*LC(y,d,t)))) ;
 
 model MGPlanning /all/ ;
 option optcr = 0.0 ;
