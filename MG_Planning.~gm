@@ -90,7 +90,7 @@ $ gdxin Demand.gdx
 $ load Pd
 $ gdxin
 
-display LMP, Ps, Pd ;
+display LMP, Ps, Pd, DG_param(i,'1'), LMP(1,1,1) ;
 
 Scalar
 r rate of interest /.2/
@@ -102,7 +102,7 @@ Variable
 Aninvcost(y) Annual cost of investments yearly
 Income(y) from selling power to Network yearly
 OpCost(y) Operation cost yearly
-NPV Net Present Value of total costs ;
+MGNPV Net Present Value of total costs ;
 
 Binary Variables
 II(i,y,d,t) Commitment state of unit i at time t
@@ -122,7 +122,7 @@ Ppur(y,d,t) P purchased from main Network at the price of LMP
 Psale(y,d,t) P sold to Network at price of LMP ;
 
 Equations
-        obj_func   objective function
+        MGobj_func   objective function
         prim_Aninvcost        annual cost
         prim_state_commit
         gen_min
@@ -152,20 +152,22 @@ Equations
 *         Min_UP_Con_1
 *         Min_DN_Con_1 ;
 
-obj_func.. NPV =e= sum(y,(AnInvcost(y) + OpCost(y) - Income(y))/((1+r)**YY(y))) ;
+MGobj_func.. MGNPV =e= sum(y,(AnInvcost(y) + OpCost(y) - Income(y))/((1+r)**YY(y))) ;
 prim_Aninvcost(y).. Aninvcost(y) =e= sum(i, Aninv(i)*S(i)) + sum(pv, AnCost_pv(pv)*SI(pv)) + sum(e,Ancost_ess(e)) ;
+
+Income_eq(y).. Income(y) =e= 91.25*sum((d,t),LMP(y,d,t)*Psale(y,d,t)) ;
+
+OpCost_eq(y).. OpCost(y) =e= 91.25*(sum((d,t), sum(i,DG_param(i,'6')*II(i,y,d,t)
++ LMP(y,d,t)*Ppur(y,d,t) + SU(i,y,d,t) + SD(i,y,d,t) + DG_param(i,'5')*P(i,y,d,t) + LCC*LC(y,d,t)))) ;
 
 prim_state_commit(i,y,d,t).. II(i,y,d,t) =l= S(i) ;
 
 gen_min(i,y,d,t).. P(i,y,d,t) =g= DG_param(i,'1')*II(i,y,d,t) ;
 gen_max(i,y,d,t).. P(i,y,d,t) =l= DG_param(i,'2')*II(i,y,d,t) ;
-
 SU_eq(i,y,d,t).. SU(i,y,d,t) =g= DG_param(i,'7')*(II(i,y,d,t) - II(i,y,d,t-1)) ;
 SD_eq(i,y,d,t).. SD(i,y,d,t) =g= DG_param(i,'8')*(II(i,y,d,t-1) - II(i,y,d,t)) ;
-
 * 7min_ontime ;
 * 8min_offtime ;
-
 rampup_limit(i,y,d,t).. P(i,y,d,t) - P(i,y,d,t-1) =l= DG_param(i,'3') ;
 rampdn_limit(i,y,d,t).. P(i,y,d,t-1) - P(i,y,d,t) =l= DG_param(i,'3') ;
 
@@ -192,11 +194,9 @@ power_balance(y,d,t).. sum(i,P(i,y,d,t)) + sum(e,Dc(e,y,d,t) - C(e,y,d,t)) + LC(
  sum(pv, Cap(pv)*Ps(y,d,t)*SI(pv))+ Ppur(y,d,t) =g= Pd(y,d,t) + Psale(y,d,t);
 
 *Reserve(y,d,t).. sum(i,DG_param(i,'2')*II(i,y,d,t)) =g= 1.1*Pd(y,d,t) + (Psale(y,d,t) - Ppur(y,d,t));
-Income_eq(y).. Income(y) =e= 91.25*sum((d,t),LMP(y,d,t)*Psale(y,d,t)) ;
-OpCost_eq(y).. OpCost(y) =e= 91.25*(sum((d,t), sum(i,DG_param(i,'6')*II(i,y,d,t)
- + LMP(y,d,t)*Ppur(y,d,t) + SU(i,y,d,t) + SD(i,y,d,t) + DG_param(i,'5')*P(i,y,d,t) + LCC*LC(y,d,t)))) ;
+
 
 model MGPlanning /all/ ;
 option optcr = 0.0 ;
-solve MGPlanning minimizing NPV using mip;
+solve MGPlanning minimizing MGNPV using mip;
 
